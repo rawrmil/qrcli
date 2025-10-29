@@ -31,7 +31,7 @@ void print_pic_big(uint8_t* pic, int side, bool inv) {
 
 int main(int argc, char** argv) {
 
-	bool* f_help = flag_bool("help", 0, "help");
+	bool* f_help = flag_bool("help", 0, "show help");
 
 	if (!flag_parse(argc, argv)) {
     print_help();
