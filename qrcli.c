@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
 	printf("%dx%d\n", size, size);
 	for (int x = 0; x < size; x++) {
 		for (int y = 0; y < size; y++) {
-			pic[(y+1)*(size+2)+(x+1)] = qrcodegen_getModule(&qrc, x, y);
+			pic[(y+1)*(size+2)+(x+1)] = qrcodegen_getModule(qrc, x, y);
 		}
 	}
 
