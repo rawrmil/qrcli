@@ -6,7 +6,7 @@
 int main(int argc, char** argv) {
 	NOB_GO_REBUILD_URSELF(argc, argv);
 	Cmd c = {0};
-	cmd_append(&c, "cc", "qrcli.c", "-o", "qrcli");
+	cmd_append(&c, "cc", "qrcli.c", "qrcodegen.c", "-o", "qrcli");
 	if (!cmd_run(&c)) return 1;
 	return 0;
 }
