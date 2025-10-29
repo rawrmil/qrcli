@@ -12,75 +12,111 @@
 #include "flag.h"
 #undef FLAG_IMPLEMENTATION
 
-#define BUF (qrcodegen_BUFFER_LEN_FOR_VERSION(qrcodegen_VERSION_MAX))
+#define MAX_BUFFER_SIZE (qrcodegen_BUFFER_LEN_FOR_VERSION(qrcodegen_VERSION_MAX))
 
-void print_help() {
+// --- ARGS ---
+
+typedef struct AppConfig {
+	int rargc;
+	char** rargv;
+	bool* help;
+} AppConfig;
+
+AppConfig config = {0};
+
+void PrintHelp() {
 	printf("qrcli -help\n");
-	printf("qrcli <text> <flags>\n");
+	printf("qrcli <flags> [text]\n");
   flag_print_options(stdout);
 }
 
-void print_pic_big(uint8_t* pic, int side, bool inv) {
-	for (int x = 0; x < side; x++) {
-		for (int y = 0; y < side; y++) {
-			printf("%s", pic[y*side+x] != inv ? "██" : "  ");
+bool ArgsParse(int argc, char** argv) {
+	config.help = flag_bool("help", 0, "show help");
+
+	if (!flag_parse(argc, argv)) {
+    PrintHelp();
+		flag_print_error(stderr);
+		exit(1);
+	}
+
+	if (*config.help) {
+    PrintHelp();
+		exit(0);
+	}
+
+	config.rargc = flag_rest_argc();
+	if (config.rargc == 0) {
+    PrintHelp();
+		exit(1);
+	}
+	config.rargv = flag_rest_argv();
+}
+
+void GetInputString(Nob_String_Builder* sb) {
+	for (int i = 0; i < config.rargc; i++) {
+		nob_sb_append_cstr(sb, config.rargv[i]);
+		nob_sb_append_cstr(sb, i < config.rargc-1 ? " " : "");
+	}
+	nob_sb_append_null(sb);
+}
+
+// --- BITMAP ---
+
+void PrintBitmapBig(uint8_t* bitmap, int bitmap_side, bool inv) {
+	for (int x = 0; x < bitmap_side; x++) {
+		for (int y = 0; y < bitmap_side; y++) {
+			printf("%s", bitmap[y*bitmap_side+x] != inv ? "██" : "  ");
 		}
 		printf("\n");
 	}
 }
 
+// --- MAIN ---
+
 int main(int argc, char** argv) {
 
-	bool* f_help = flag_bool("help", 0, "show help");
-
-	if (!flag_parse(argc, argv)) {
-    print_help();
-		flag_print_error(stderr);
-		exit(1);
-	}
-
-	if (*f_help) {
-    print_help();
-		exit(0);
-	}
-
-	int rargc = flag_rest_argc();
-	if (rargc == 0) {
-    print_help();
-		exit(1);
-	}
-	char** rargv = flag_rest_argv();
+	ArgsParse(argc, argv);
 
 	Nob_String_Builder sb = {0};
-	for (int i = 0; i < rargc; i++) {
-		nob_sb_append_cstr(&sb, rargv[i]);
-		nob_sb_append_cstr(&sb, i < rargc-1 ? " " : "");
-	}
-	nob_sb_append_null(&sb);
+	GetInputString(&sb);
 	printf("Encoding: '%s'\n", sb.items);
 
-	uint8_t tmp[BUF] = {0};
-	uint8_t qrc[BUF] = {0};
-	if (!qrcodegen_encodeText(sb.items, tmp, qrc, qrcodegen_Ecc_LOW, qrcodegen_VERSION_MIN, qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, false)) {
+	uint8_t tmp[MAX_BUFFER_SIZE] = {0};
+	uint8_t qrc[MAX_BUFFER_SIZE] = {0};
+
+	bool success = qrcodegen_encodeText(
+		sb.items,
+		tmp,
+		qrc,
+		qrcodegen_Ecc_MEDIUM,
+		qrcodegen_VERSION_MIN,
+		qrcodegen_VERSION_MAX,
+		qrcodegen_Mask_AUTO,
+		false);
+
+	if (!success) {
 		printf("Too much data\n");
 		exit(1);
 	}
 
 	int size = qrcodegen_getSize(qrc);
-	size_t pic_buf = (size+2)*(size+2);
-	uint8_t* pic = calloc(pic_buf, sizeof(*pic));
-	memset(pic, 0, pic_buf);
+
+	int bitmap_side = size+2;
+	size_t bitmap_size = (size+2)*(size+2);
+	uint8_t* bitmap = calloc(bitmap_size, sizeof(*bitmap));
+	memset(bitmap, 0, bitmap_size);
+
 	printf("%dx%d\n", size, size);
 	for (int x = 0; x < size; x++) {
 		for (int y = 0; y < size; y++) {
-			pic[(y+1)*(size+2)+(x+1)] = qrcodegen_getModule(qrc, x, y);
+			bitmap[(y+1)*bitmap_side+(x+1)] = qrcodegen_getModule(qrc, x, y);
 		}
 	}
 
-	print_pic_big(pic, size+2, 0);
-	print_pic_big(pic, size+2, 1);
+	PrintBitmapBig(bitmap, bitmap_side, 0);
+	PrintBitmapBig(bitmap, bitmap_side, 1);
 
-	free(pic);
+	free(bitmap);
 
 	return 0;
 }
