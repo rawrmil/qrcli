@@ -20,6 +20,7 @@ typedef struct AppConfig {
 	int rargc;
 	char** rargv;
 	bool* help;
+	uint64_t* correction;
 } AppConfig;
 
 AppConfig config = {0};
@@ -32,6 +33,7 @@ void PrintHelp() {
 
 bool ArgsParse(int argc, char** argv) {
 	config.help = flag_bool("help", 0, "show help");
+	config.correction = flag_uint64("correction", 2, "error code correction, 1-4 (low, medium, quartile, high)");
 
 	if (!flag_parse(argc, argv)) {
     PrintHelp();
@@ -42,6 +44,11 @@ bool ArgsParse(int argc, char** argv) {
 	if (*config.help) {
     PrintHelp();
 		exit(0);
+	}
+
+	if (*config.correction < 1 || *config.correction > 4) {
+		printf("Wrong error code correction, must be 1-4\n");
+		exit(1);
 	}
 
 	config.rargc = flag_rest_argc();
@@ -88,7 +95,7 @@ int main(int argc, char** argv) {
 		sb.items,
 		tmp,
 		qrc,
-		qrcodegen_Ecc_MEDIUM,
+		*config.correction-1,
 		qrcodegen_VERSION_MIN,
 		qrcodegen_VERSION_MAX,
 		qrcodegen_Mask_AUTO,
