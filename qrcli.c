@@ -20,6 +20,15 @@ void print_help() {
   flag_print_options(stdout);
 }
 
+void print_pic_big(uint8_t* pic, int side, bool inv) {
+	for (int x = 0; x < side; x++) {
+		for (int y = 0; y < side; y++) {
+			printf("%s", pic[y*side+x] != inv ? "██" : "  ");
+		}
+		printf("\n");
+	}
+}
+
 int main(int argc, char** argv) {
 
 	bool* f_help = flag_bool("help", 0, "help");
@@ -68,12 +77,10 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	for (int x = 0; x < size+2; x++) {
-		for (int y = 0; y < size+2; y++) {
-			printf("%s", pic[y*(size+2)+x] ? "██" : "  ");
-		}
-		printf("\n");
-	}
+	print_pic_big(pic, size+2, 0);
+	print_pic_big(pic, size+2, 1);
+
+	free(pic);
 
 	return 0;
 }
