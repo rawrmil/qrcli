@@ -21,6 +21,8 @@ typedef struct AppConfig {
 	char** rargv;
 	bool* help;
 	uint64_t* correction;
+	uint64_t* version_min;
+	uint64_t* version_max;
 } AppConfig;
 
 AppConfig config = {0};
@@ -34,6 +36,8 @@ void PrintHelp() {
 bool ArgsParse(int argc, char** argv) {
 	config.help = flag_bool("help", 0, "show help");
 	config.correction = flag_uint64("correction", 2, "error code correction, 1-4 (low, medium, quartile, high)");
+	config.version_min = flag_uint64("version-min", qrcodegen_VERSION_MIN, "minimal QR-code version to choose from");
+	config.version_max = flag_uint64("version-max", qrcodegen_VERSION_MAX, "maximal QR-code version to choose from");
 
 	if (!flag_parse(argc, argv)) {
     PrintHelp();
@@ -41,16 +45,33 @@ bool ArgsParse(int argc, char** argv) {
 		exit(1);
 	}
 
+	// -help
 	if (*config.help) {
     PrintHelp();
 		exit(0);
 	}
 
+	// -correction
 	if (*config.correction < 1 || *config.correction > 4) {
 		printf("Wrong error code correction, must be 1-4\n");
 		exit(1);
 	}
 
+	// -version-min/-version-max
+	if (*config.version_min < qrcodegen_VERSION_MIN || *config.version_min > qrcodegen_VERSION_MIN) {
+		printf("Wrong minimal version, must be 1-%d\n", qrcodegen_VERSION_MIN);
+	}
+
+	if (*config.version_max < qrcodegen_VERSION_MIN || *config.version_max > qrcodegen_VERSION_MAX) {
+		printf("Wrong maximal version, must be 1-%d\n", qrcodegen_VERSION_MAX);
+	}
+
+	if (*config.version_min > *config.version_max) {
+		printf("Minimal version is higher than maximal version\n");
+		exit(1);
+	}
+
+	// Rest argv
 	config.rargc = flag_rest_argc();
 	if (config.rargc == 0) {
     PrintHelp();
@@ -96,8 +117,8 @@ int main(int argc, char** argv) {
 		tmp,
 		qrc,
 		*config.correction-1,
-		qrcodegen_VERSION_MIN,
-		qrcodegen_VERSION_MAX,
+		*config.version_min,
+		*config.version_max,
 		qrcodegen_Mask_AUTO,
 		false);
 
