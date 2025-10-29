@@ -20,6 +20,7 @@ typedef struct AppConfig {
 	int rargc;
 	char** rargv;
 	bool* help;
+	uint64_t* format;
 	uint64_t* correction;
 	uint64_t* version_min;
 	uint64_t* version_max;
@@ -35,6 +36,7 @@ void PrintHelp() {
 
 bool ArgsParse(int argc, char** argv) {
 	config.help = flag_bool("help", 0, "show help");
+	config.format = flag_uint64("format", 1, "printed QR-code, 1-2 (small symbols/big symbols)");
 	config.correction = flag_uint64("correction", 2, "error code correction, 1-4 (low, medium, quartile, high)");
 	config.version_min = flag_uint64("version-min", qrcodegen_VERSION_MIN, "minimal QR-code version to choose from");
 	config.version_max = flag_uint64("version-max", qrcodegen_VERSION_MAX, "maximal QR-code version to choose from");
@@ -49,6 +51,12 @@ bool ArgsParse(int argc, char** argv) {
 	if (*config.help) {
     PrintHelp();
 		exit(0);
+	}
+
+	// -format
+	if (*config.format < 1 || *config.format > 2) {
+		printf("Wrong print format of the QR-code, must be (1-2)\n");
+		exit(1);
 	}
 
 	// -correction
@@ -91,9 +99,26 @@ void GetInputString(Nob_String_Builder* sb) {
 // --- BITMAP ---
 
 void PrintBitmapBig(uint8_t* bitmap, int bitmap_side, bool inv) {
-	for (int x = 0; x < bitmap_side; x++) {
-		for (int y = 0; y < bitmap_side; y++) {
+	for (int y = 0; y < bitmap_side; y++) {
+		for (int x = 0; x < bitmap_side; x++) {
 			printf("%s", bitmap[y*bitmap_side+x] != inv ? "██" : "  ");
+		}
+		printf("\n");
+	}
+}
+
+void PrintBitmapSmall(uint8_t* bitmap, int bitmap_side, bool inv) {
+	const char p[][4] = { " ", "▄", "▀", "█"};
+	for (int hy = 0; hy < bitmap_side/2 + bitmap_side%2; hy++) {
+		for (int x = 0; x < bitmap_side; x++) {
+			uint8_t up, down;
+			up = bitmap[(hy*2)*bitmap_side+x] != inv;
+			if (hy*2+1 < bitmap_side)
+				down = bitmap[(hy*2+1)*bitmap_side+x] != inv;
+			else
+				down = inv;
+			uint8_t index = ((up & 1) << 1) | (down & 1);
+			printf("%s", p[index]);
 		}
 		printf("\n");
 	}
@@ -141,8 +166,16 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	PrintBitmapBig(bitmap, bitmap_side, 0);
-	PrintBitmapBig(bitmap, bitmap_side, 1);
+	switch (*config.format) {
+		case 1:
+			PrintBitmapSmall(bitmap, bitmap_side, 0);
+			PrintBitmapSmall(bitmap, bitmap_side, 1);
+			break;
+		case 2:
+			PrintBitmapBig(bitmap, bitmap_side, 0);
+			PrintBitmapBig(bitmap, bitmap_side, 1);
+			break;
+	}
 
 	free(bitmap);
 
